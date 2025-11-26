@@ -1,0 +1,42 @@
+<!--
+ * @Author: YEYI millerye1995@foxmail.com
+ * @Date: 2025-11-26 19:18:17
+ * @LastEditors: YEYI millerye1995@foxmail.com
+ * @LastEditTime: 2025-11-26 19:20:44
+ * @FilePath: \image-editor\example\index.html
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Editor Demo</title>
+    <link rel="stylesheet" href="./style.css">
+    <!-- We will compile LESS to CSS manually or via tool for the demo -->
+    <style>
+        body { margin: 0; padding: 20px; font-family: sans-serif; background: #fafafa; }
+        #app {
+            max-width: 900px;
+            margin: 0 auto;
+            border: 1px solid #ccc;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image Editor Demo</h1>
+    <div id="app"></div>
+
+    <script type="module">
+        import { EditorApp } from './bundle.js';
+        
+        new EditorApp('app', {
+            width: 800,
+            height: 600,
+            backgroundImage: 'https://picsum.photos/800/600'
+        });
+    </script>
+</body>
+</html>

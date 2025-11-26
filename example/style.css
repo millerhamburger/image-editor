@@ -1,0 +1,55 @@
+.image-editor-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: #f0f0f0;
+  border-bottom: 1px solid #ccc;
+  font-family: sans-serif;
+}
+.image-editor-toolbar .tools-group {
+  display: flex;
+  gap: 5px;
+}
+.image-editor-toolbar .tool-btn {
+  padding: 5px;
+  border: 1px solid #ccc;
+  background: #fff;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 32px;
+  height: 32px;
+}
+.image-editor-toolbar .tool-btn:hover {
+  background: #e0e0e0;
+}
+.image-editor-toolbar .tool-btn.active {
+  background: #00a8ff;
+  color: white;
+  border-color: #0088cc;
+}
+.image-editor-toolbar .tool-btn svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  pointer-events: none;
+}
+.image-editor-toolbar .attrs-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.image-editor-toolbar .attrs-group label {
+  font-size: 14px;
+}
+canvas {
+  display: block;
+  margin: 0 auto;
+  border: 1px solid #ddd;
+  background-color: #fff;
+  /* fallback */
+  cursor: default;
+}
