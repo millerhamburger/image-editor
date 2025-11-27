@@ -760,6 +760,7 @@ var ImageEditor = class {
           const event = new Event("input");
           this.textArea.dispatchEvent(event);
           this.textArea.focus();
+          this.render();
           break;
         }
       }
@@ -1073,8 +1074,14 @@ var ImageEditor = class {
       this.ctx.fillStyle = this.backgroundColor;
       this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
-    this.shapes.forEach((shape) => shape.draw(this.ctx));
-    this.transformer.draw(this.ctx);
+    const editing = this.textArea && this.textArea.style.display === "block";
+    this.shapes.forEach((shape) => {
+      if (editing && this.activeTextShape && shape === this.activeTextShape) return;
+      shape.draw(this.ctx);
+    });
+    if (!(editing && this.activeTextShape && this.selectedShape === this.activeTextShape)) {
+      this.transformer.draw(this.ctx);
+    }
     if (this.currentTool === "mosaic" && this.mousePos) {
       this.ctx.save();
       this.ctx.beginPath();

@@ -216,6 +216,7 @@ export class ImageEditor {
                 const event = new Event('input');
                 this.textArea.dispatchEvent(event);
                 this.textArea.focus();
+                this.render(); // Hide canvas text while editing
                 break;
             }
         }
@@ -555,10 +556,16 @@ export class ImageEditor {
       this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
-    this.shapes.forEach(shape => shape.draw(this.ctx));
+    const editing = this.textArea && this.textArea.style.display === 'block';
+    this.shapes.forEach(shape => {
+      if (editing && this.activeTextShape && shape === this.activeTextShape) return;
+      shape.draw(this.ctx);
+    });
     
-    // Draw transformer on top
-    this.transformer.draw(this.ctx);
+    // Draw transformer on top (skip when editing active text)
+    if (!(editing && this.activeTextShape && this.selectedShape === this.activeTextShape)) {
+      this.transformer.draw(this.ctx);
+    }
 
     // Draw Mosaic Cursor
     if (this.currentTool === 'mosaic' && this.mousePos) {
