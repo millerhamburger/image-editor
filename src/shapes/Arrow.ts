@@ -16,21 +16,23 @@ export class Arrow extends BaseShape {
     const centerY = (this.y + this.endY) / 2;
     this.applyRotation(ctx, centerX, centerY);
 
-    const headLength = 15;
     const dx = this.endX - this.x;
     const dy = this.endY - this.y;
     const angle = Math.atan2(dy, dx);
+    const headLength = Math.max(12, this.lineWidth * 3);
+    const baseX = this.endX - headLength * Math.cos(angle);
+    const baseY = this.endY - headLength * Math.sin(angle);
 
     ctx.beginPath();
     ctx.strokeStyle = this.strokeColor;
     ctx.lineWidth = this.lineWidth;
-    
-    // Main line
+    ctx.lineCap = 'butt';
+    const overlap = Math.max(1, this.lineWidth / 2);
+    const shaftEndX = baseX + overlap * Math.cos(angle);
+    const shaftEndY = baseY + overlap * Math.sin(angle);
     ctx.moveTo(this.x, this.y);
-    ctx.lineTo(this.endX, this.endY);
-    ctx.stroke(); // Draw the line
-    
-    // Arrow head
+    ctx.lineTo(shaftEndX, shaftEndY);
+    ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(this.endX, this.endY);
     ctx.lineTo(this.endX - headLength * Math.cos(angle - Math.PI / 6), this.endY - headLength * Math.sin(angle - Math.PI / 6));
