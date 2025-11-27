@@ -133,9 +133,9 @@ export class Transformer {
     if ('width' in shape && 'height' in shape) {
         return { x: shape.x, y: shape.y, width: (shape as any).width, height: (shape as any).height };
     }
-    if ('radius' in shape) {
+    if ('rx' in shape && 'ry' in shape) {
         const s = shape as any;
-        return { x: s.x - s.radius, y: s.y - s.radius, width: s.radius * 2, height: s.radius * 2 };
+        return { x: s.x - Math.abs(s.rx), y: s.y - Math.abs(s.ry), width: Math.abs(s.rx) * 2, height: Math.abs(s.ry) * 2 };
     }
     if ('points' in shape) {
         const s = shape as any;

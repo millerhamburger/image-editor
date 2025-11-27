@@ -364,7 +364,7 @@ export class ImageEditor {
           break;
         case 'circle':
           this.currentShape = new Circle({
-            x, y, radius: 0,
+            x, y, rx: 0, ry: 0,
             strokeColor: this.currentColor,
             lineWidth: this.currentLineWidth
           });

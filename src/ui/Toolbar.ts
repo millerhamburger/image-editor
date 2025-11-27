@@ -18,7 +18,7 @@ export class Toolbar {
       zh: {
           select: '选择',
           rect: '矩形',
-          circle: '圆形',
+          circle: '椭圆',
           arrow: '箭头',
           pen: '画笔',
           text: '文字',
@@ -33,7 +33,7 @@ export class Toolbar {
       en: {
           select: 'Select',
           rect: 'Rectangle',
-          circle: 'Circle',
+          circle: 'Ellipse',
           arrow: 'Arrow',
           pen: 'Pen',
           text: 'Text',

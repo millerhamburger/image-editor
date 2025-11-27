@@ -9,36 +9,34 @@
 import { BaseShape, ShapeOptions } from './BaseShape';
 
 export class Circle extends BaseShape {
-  radius: number;
+  rx: number;
+  ry: number;
 
-  constructor(options: ShapeOptions & { radius: number }) {
+  constructor(options: ShapeOptions & { rx: number; ry: number }) {
     super(options);
-    this.radius = options.radius;
+    this.rx = options.rx;
+    this.ry = options.ry;
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
     ctx.save();
-    // Circle center is x,y (wait, in original implementation x,y was center? No, user drags from center or corner? 
-    // In original implementation: arc(this.x, this.y, ...) implies x,y is center.
-    // Let's stick to x,y is center for Circle.
     this.applyRotation(ctx, this.x, this.y);
 
     ctx.beginPath();
     ctx.strokeStyle = this.strokeColor;
     ctx.lineWidth = this.lineWidth;
-    ctx.arc(this.x, this.y, Math.abs(this.radius), 0, Math.PI * 2);
+    ctx.ellipse(this.x, this.y, Math.abs(this.rx), Math.abs(this.ry), 0, 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.restore();
   }
 
   hitTest(x: number, y: number): boolean {
-    // Rotation doesn't affect circle hit test if it's a perfect circle!
-    // But if we support non-uniform scaling (ellipse) later, it would.
-    // For now, distance check is enough.
     const dx = x - this.x;
     const dy = y - this.y;
-    return Math.sqrt(dx * dx + dy * dy) <= Math.abs(this.radius);
+    const rx = Math.max(1, Math.abs(this.rx));
+    const ry = Math.max(1, Math.abs(this.ry));
+    return (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) <= 1;
   }
 
   move(dx: number, dy: number): void {
@@ -49,17 +47,23 @@ export class Circle extends BaseShape {
   resize(x: number, y: number): void {
     const dx = x - this.x;
     const dy = y - this.y;
-    this.radius = Math.sqrt(dx * dx + dy * dy);
+    this.rx = Math.abs(dx);
+    this.ry = Math.abs(dy);
   }
 
   clone(): Circle {
     return new Circle({
       x: this.x,
       y: this.y,
-      radius: this.radius,
+      rx: this.rx,
+      ry: this.ry,
       strokeColor: this.strokeColor,
       lineWidth: this.lineWidth,
       rotation: this.rotation
     });
+  }
+
+  getBounds() {
+    return { x: this.x - Math.abs(this.rx), y: this.y - Math.abs(this.ry), width: Math.abs(this.rx) * 2, height: Math.abs(this.ry) * 2 };
   }
 }

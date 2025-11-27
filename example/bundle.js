@@ -98,7 +98,8 @@ var Rect = class _Rect extends BaseShape {
 var Circle = class _Circle extends BaseShape {
   constructor(options) {
     super(options);
-    this.radius = options.radius;
+    this.rx = options.rx;
+    this.ry = options.ry;
   }
   draw(ctx) {
     ctx.save();
@@ -106,14 +107,16 @@ var Circle = class _Circle extends BaseShape {
     ctx.beginPath();
     ctx.strokeStyle = this.strokeColor;
     ctx.lineWidth = this.lineWidth;
-    ctx.arc(this.x, this.y, Math.abs(this.radius), 0, Math.PI * 2);
+    ctx.ellipse(this.x, this.y, Math.abs(this.rx), Math.abs(this.ry), 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
   }
   hitTest(x, y) {
     const dx = x - this.x;
     const dy = y - this.y;
-    return Math.sqrt(dx * dx + dy * dy) <= Math.abs(this.radius);
+    const rx = Math.max(1, Math.abs(this.rx));
+    const ry = Math.max(1, Math.abs(this.ry));
+    return dx * dx / (rx * rx) + dy * dy / (ry * ry) <= 1;
   }
   move(dx, dy) {
     this.x += dx;
@@ -122,17 +125,22 @@ var Circle = class _Circle extends BaseShape {
   resize(x, y) {
     const dx = x - this.x;
     const dy = y - this.y;
-    this.radius = Math.sqrt(dx * dx + dy * dy);
+    this.rx = Math.abs(dx);
+    this.ry = Math.abs(dy);
   }
   clone() {
     return new _Circle({
       x: this.x,
       y: this.y,
-      radius: this.radius,
+      rx: this.rx,
+      ry: this.ry,
       strokeColor: this.strokeColor,
       lineWidth: this.lineWidth,
       rotation: this.rotation
     });
+  }
+  getBounds() {
+    return { x: this.x - Math.abs(this.rx), y: this.y - Math.abs(this.ry), width: Math.abs(this.rx) * 2, height: Math.abs(this.ry) * 2 };
   }
 };
 
@@ -573,9 +581,9 @@ var Transformer = class {
     if ("width" in shape && "height" in shape) {
       return { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
     }
-    if ("radius" in shape) {
+    if ("rx" in shape && "ry" in shape) {
       const s = shape;
-      return { x: s.x - s.radius, y: s.y - s.radius, width: s.radius * 2, height: s.radius * 2 };
+      return { x: s.x - Math.abs(s.rx), y: s.y - Math.abs(s.ry), width: Math.abs(s.rx) * 2, height: Math.abs(s.ry) * 2 };
     }
     if ("points" in shape) {
       const s = shape;
@@ -872,7 +880,8 @@ var ImageEditor = class {
           this.currentShape = new Circle({
             x,
             y,
-            radius: 0,
+            rx: 0,
+            ry: 0,
             strokeColor: this.currentColor,
             lineWidth: this.currentLineWidth
           });
@@ -1129,7 +1138,7 @@ var Toolbar = class {
       zh: {
         select: "\u9009\u62E9",
         rect: "\u77E9\u5F62",
-        circle: "\u5706\u5F62",
+        circle: "\u692D\u5706",
         arrow: "\u7BAD\u5934",
         pen: "\u753B\u7B14",
         text: "\u6587\u5B57",
@@ -1144,7 +1153,7 @@ var Toolbar = class {
       en: {
         select: "Select",
         rect: "Rectangle",
-        circle: "Circle",
+        circle: "Ellipse",
         arrow: "Arrow",
         pen: "Pen",
         text: "Text",
