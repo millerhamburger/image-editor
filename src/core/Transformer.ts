@@ -20,7 +20,7 @@ export class Transformer {
     ctx.save();
     
     // Get bounds and center
-    const bounds = this.getShapeBounds(this.shape);
+    const bounds = this.getShapeBounds(this.shape, ctx);
     const centerX = bounds.x + bounds.width / 2;
     const centerY = bounds.y + bounds.height / 2;
 
@@ -50,7 +50,8 @@ export class Transformer {
       ctx.strokeRect(c.x - this.handleSize / 2, c.y - this.handleSize / 2, this.handleSize, this.handleSize);
     });
 
-    // Rotate Handle
+    // Rotate Handle - Removed
+    /*
     const rotateX = bounds.x + bounds.width / 2;
     const rotateY = bounds.y - this.rotateHandleOffset;
     
@@ -63,15 +64,16 @@ export class Transformer {
     ctx.arc(rotateX, rotateY, this.handleSize / 2, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+    */
 
     ctx.restore();
   }
 
   // Returns handle index: 0-3 corners, 4 rotate, -1 none, -2 inside (drag)
-  hitTest(x: number, y: number): number {
+  hitTest(x: number, y: number, ctx?: CanvasRenderingContext2D): number {
     if (!this.shape) return -1;
 
-    const bounds = this.getShapeBounds(this.shape);
+    const bounds = this.getShapeBounds(this.shape, ctx);
     const centerX = bounds.x + bounds.width / 2;
     const centerY = bounds.y + bounds.height / 2;
 
@@ -83,10 +85,12 @@ export class Transformer {
     const localX = dx * cos - dy * sin + centerX;
     const localY = dx * sin + dy * cos + centerY;
 
-    // Check rotate handle
+    // Check rotate handle - Removed
+    /*
     const rotateX = bounds.x + bounds.width / 2;
     const rotateY = bounds.y - this.rotateHandleOffset;
     if (this.dist(localX, localY, rotateX, rotateY) < this.handleSize) return 4;
+    */
 
     // Check corners
     const corners = [
@@ -113,7 +117,12 @@ export class Transformer {
     return Math.sqrt((x1-x2)**2 + (y1-y2)**2);
   }
 
-  getShapeBounds(shape: BaseShape) {
+  getShapeBounds(shape: BaseShape, ctx?: CanvasRenderingContext2D) {
+    // Check if shape has getBounds
+    if ('getBounds' in shape && typeof (shape as any).getBounds === 'function' && ctx) {
+        return (shape as any).getBounds(ctx);
+    }
+
     // Return unrotated bounds relative to shape x,y
     // For Rect/Text/Circle/Mosaic, x/y/w/h are standard.
     // For Pen/Arrow, we need to calculate.

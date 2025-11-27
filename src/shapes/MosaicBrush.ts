@@ -53,33 +53,7 @@ export class MosaicBrush extends BaseShape {
   }
 
   hitTest(x: number, y: number): boolean {
-    const bounds = this.getBounds();
-    const centerX = (bounds.minX + bounds.maxX) / 2;
-    const centerY = (bounds.minY + bounds.maxY) / 2;
-
-    const dx = x - centerX;
-    const dy = y - centerY;
-    const cos = Math.cos(-this.rotation);
-    const sin = Math.sin(-this.rotation);
-    const rx = dx * cos - dy * sin;
-    const ry = dx * sin + dy * cos;
-    const finalX = rx + centerX;
-    const finalY = ry + centerY;
-
-    // Check bounds first
-    if (finalX < bounds.minX - this.lineWidth || finalX > bounds.maxX + this.lineWidth || 
-        finalY < bounds.minY - this.lineWidth || finalY > bounds.maxY + this.lineWidth) {
-      return false;
-    }
-
-    // Check distance to polyline
-    for (let i = 0; i < this.points.length - 1; i++) {
-        const p1 = this.points[i];
-        const p2 = this.points[i+1];
-        const dist = this.pointToSegmentDistance(finalX, finalY, p1.x, p1.y, p2.x, p2.y);
-        if (dist <= this.lineWidth / 2) return true;
-    }
-    return false;
+    return false; // Disable selection for mosaic
   }
 
   move(dx: number, dy: number): void {

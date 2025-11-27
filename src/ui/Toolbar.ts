@@ -4,20 +4,57 @@ import { Icons } from './Icons';
 export class Toolbar {
   private container: HTMLElement;
   private editor: ImageEditor;
-  private tools: { type: ToolType; title: string; icon: string }[] = [
-    { type: 'select', title: 'Select', icon: Icons.Select },
-    { type: 'rect', title: 'Rectangle', icon: Icons.Rect },
-    { type: 'circle', title: 'Circle', icon: Icons.Circle },
-    { type: 'arrow', title: 'Arrow', icon: Icons.Arrow },
-    { type: 'pen', title: 'Pen', icon: Icons.Pen },
-    { type: 'text', title: 'Text', icon: Icons.Text },
-    { type: 'mosaic', title: 'Mosaic', icon: Icons.Mosaic },
+  private tools: { type: ToolType; icon: string }[] = [
+    { type: 'select', icon: Icons.Select },
+    { type: 'rect', icon: Icons.Rect },
+    { type: 'circle', icon: Icons.Circle },
+    { type: 'arrow', icon: Icons.Arrow },
+    { type: 'pen', icon: Icons.Pen },
+    { type: 'text', icon: Icons.Text },
+    { type: 'mosaic', icon: Icons.Mosaic },
   ];
+
+  private labels = {
+      zh: {
+          select: '选择',
+          rect: '矩形',
+          circle: '圆形',
+          arrow: '箭头',
+          pen: '画笔',
+          text: '文字',
+          mosaic: '打码',
+          undo: '撤销',
+          reset: '重置',
+          save: '保存',
+          color: '颜色: ',
+          width: '粗细: ',
+          confirmReset: '确定要清空所有内容吗？'
+      },
+      en: {
+          select: 'Select',
+          rect: 'Rectangle',
+          circle: 'Circle',
+          arrow: 'Arrow',
+          pen: 'Pen',
+          text: 'Text',
+          mosaic: 'Mosaic',
+          undo: 'Undo',
+          reset: 'Reset',
+          save: 'Save',
+          color: 'Color: ',
+          width: 'Width: ',
+          confirmReset: 'Are you sure you want to reset all changes?'
+      }
+  };
 
   constructor(container: HTMLElement, editor: ImageEditor) {
     this.container = container;
     this.editor = editor;
     this.render();
+  }
+
+  private get t() {
+      return this.labels[this.editor.locale] || this.labels['zh'];
   }
 
   private render() {
@@ -28,11 +65,12 @@ export class Toolbar {
     const actionsContainer = document.createElement('div');
     actionsContainer.className = 'tools-group'; // Reuse class for layout
     
-    this.createButton(actionsContainer, Icons.Undo, 'Undo', () => this.editor.undo());
-    this.createButton(actionsContainer, Icons.Reset, 'Reset', () => {
-        if(confirm('Are you sure you want to reset all changes?')) {
-            this.editor.reset();
-        }
+    this.createButton(actionsContainer, Icons.Undo, this.t.undo, () => this.editor.undo());
+    this.createButton(actionsContainer, Icons.Reset, this.t.reset, () => {
+        this.editor.reset();
+    });
+    this.createButton(actionsContainer, Icons.Save, this.t.save, () => {
+        this.editor.save();
     });
 
     this.container.appendChild(actionsContainer);
@@ -52,7 +90,7 @@ export class Toolbar {
     this.tools.forEach(tool => {
       const btn = document.createElement('button');
       btn.innerHTML = tool.icon;
-      btn.title = tool.title;
+      btn.title = this.t[tool.type as keyof typeof this.t] || tool.type;
       btn.className = 'tool-btn mode-btn';
       btn.onclick = () => {
         this.editor.setTool(tool.type);
@@ -70,7 +108,7 @@ export class Toolbar {
 
     // Color picker
     const colorLabel = document.createElement('label');
-    colorLabel.innerText = 'Color: ';
+    colorLabel.innerText = this.t.color;
     const colorInput = document.createElement('input');
     colorInput.type = 'color';
     colorInput.value = '#ff0000';
@@ -82,7 +120,7 @@ export class Toolbar {
 
     // Width picker
     const widthLabel = document.createElement('label');
-    widthLabel.innerText = 'Width: ';
+    widthLabel.innerText = this.t.width;
     const widthInput = document.createElement('input');
     widthInput.type = 'range';
     widthInput.min = '1';
@@ -94,13 +132,6 @@ export class Toolbar {
     attrsContainer.appendChild(widthLabel);
     attrsContainer.appendChild(widthInput);
     
-    // Export button
-    this.createButton(attrsContainer, Icons.Export, 'Export', () => {
-        const url = this.editor.exportDataURL();
-        const win = window.open();
-        win?.document.write('<img src="' + url + '"/>');
-    });
-
     this.container.appendChild(attrsContainer);
   }
 

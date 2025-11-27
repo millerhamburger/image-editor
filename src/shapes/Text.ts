@@ -87,4 +87,25 @@ export class TextShape extends BaseShape {
       rotation: this.rotation
     });
   }
+
+  getBounds(ctx: CanvasRenderingContext2D) {
+    ctx.save();
+    ctx.font = `${this.fontSize}px ${this.fontFamily}`;
+    const lines = this.text.split('\n');
+    let maxWidth = 0;
+    lines.forEach(line => {
+        const w = ctx.measureText(line).width;
+        if (w > maxWidth) maxWidth = w;
+    });
+    const lineHeight = this.fontSize * 1.2;
+    const totalHeight = lines.length * lineHeight;
+    ctx.restore();
+
+    return {
+        x: this.x,
+        y: this.y,
+        width: maxWidth,
+        height: totalHeight
+    };
+  }
 }

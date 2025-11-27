@@ -1,14 +1,15 @@
 {
-  "name": "image-editor",
-  "version": "1.0.0",
-  "description": "",
+  "name": "bunnn-canvas-image-editor",
+  "version": "1.0.1",
+  "description": "A simple HTML5 Canvas image editor",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "style": "dist/style.css",
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "rimraf dist && tsc",
+    "build": "rimraf dist && tsc && lessc src/styles/editor.less dist/style.css",
     "prepublishOnly": "npm run build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

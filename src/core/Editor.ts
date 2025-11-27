@@ -16,6 +16,8 @@ export interface EditorOptions {
   height?: number;
   backgroundImage?: string;
   backgroundColor?: string;
+  locale?: 'zh' | 'en';
+  onSave?: (blob: Blob) => void;
 }
 
 export class ImageEditor {
@@ -36,6 +38,8 @@ export class ImageEditor {
   private mousePos: { x: number; y: number } | null = null;
   private textArea!: HTMLTextAreaElement;
   private activeTextShape: TextShape | null = null;
+  public locale: 'zh' | 'en' = 'zh'; // Default Chinese
+  private onSave?: (blob: Blob) => void;
 
   // For Pen tool
   private currentPenPath: { x: number; y: number }[] = [];
@@ -58,6 +62,14 @@ export class ImageEditor {
     
     this.container.appendChild(this.canvas);
     this.resizeCanvas(options.width || 800, options.height || 600);
+    
+    if (options.locale) {
+        this.locale = options.locale;
+    }
+
+    if (options.onSave) {
+        this.onSave = options.onSave;
+    }
 
     this.historyManager = new HistoryManager();
     this.transformer = new Transformer();
@@ -95,11 +107,13 @@ export class ImageEditor {
     this.textArea.style.zIndex = '1000';
     this.textArea.style.font = '20px Arial'; 
     this.textArea.style.lineHeight = '1.2';
+    this.textArea.style.whiteSpace = 'nowrap';
     this.textArea.style.color = this.currentColor;
     
     this.container.appendChild(this.textArea);
 
     this.textArea.addEventListener('input', () => {
+        this.textArea.value = this.textArea.value.replace(/\n/g, '');
         this.textArea.style.width = '0';
         this.textArea.style.height = '0';
         this.textArea.style.width = (this.textArea.scrollWidth + 10) + 'px';
@@ -107,7 +121,7 @@ export class ImageEditor {
     });
 
     this.textArea.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === 'Enter') {
             e.preventDefault();
             this.finishTextEditing();
         }
@@ -141,8 +155,12 @@ export class ImageEditor {
              // Assuming container is relative/absolute. 
              // We set style.left/top based on mouse event which is relative to canvas/container.
              // So we can parse style.
-             const x = parseFloat(this.textArea.style.left);
-             const y = parseFloat(this.textArea.style.top);
+             // We need to subtract canvas offset if any, to get relative to canvas (0,0) for shape coords
+             // Wait, shape coords are relative to canvas (0,0).
+             // textArea.style.left was set as: x + canvas.offsetLeft
+             // So x = parseFloat(style.left) - canvas.offsetLeft
+             const x = parseFloat(this.textArea.style.left) - this.canvas.offsetLeft;
+             const y = parseFloat(this.textArea.style.top) - this.canvas.offsetTop;
              
              const textShape = new TextShape({
                 x, y, text: val,
@@ -188,8 +206,8 @@ export class ImageEditor {
             if (shape instanceof TextShape && shape.hitTest(x, y)) {
                 this.activeTextShape = shape;
                 this.textArea.value = shape.text;
-                this.textArea.style.left = shape.x + 'px';
-                this.textArea.style.top = shape.y + 'px';
+                this.textArea.style.left = (shape.x + this.canvas.offsetLeft) + 'px';
+                this.textArea.style.top = (shape.y + this.canvas.offsetTop) + 'px';
                 this.textArea.style.display = 'block';
                 this.textArea.style.color = shape.strokeColor;
                 this.textArea.style.width = 'auto';
@@ -289,8 +307,8 @@ export class ImageEditor {
 
     if (this.currentTool === 'text') {
         this.textArea.value = '';
-        this.textArea.style.left = x + 'px';
-        this.textArea.style.top = y + 'px';
+        this.textArea.style.left = (x + this.canvas.offsetLeft) + 'px';
+        this.textArea.style.top = (y + this.canvas.offsetTop) + 'px';
         this.textArea.style.display = 'block';
         this.textArea.style.color = this.currentColor;
         this.textArea.style.width = '20px';
@@ -303,7 +321,7 @@ export class ImageEditor {
     if (this.currentTool === 'select') {
       // Check Transformer handles first if shape is selected
       if (this.selectedShape) {
-        const handleIndex = this.transformer.hitTest(x, y);
+        const handleIndex = this.transformer.hitTest(x, y, this.ctx);
         if (handleIndex !== -1) {
           this.transformHandleIndex = handleIndex;
           this.saveState(); // Save before transform
@@ -401,12 +419,7 @@ export class ImageEditor {
           this.startY = y;
         } else if (this.transformHandleIndex !== -1) {
           if (this.transformHandleIndex === 4) { // Rotate handle
-              const bounds = this.getShapeBounds(this.selectedShape);
-              const centerX = bounds.x + bounds.width / 2;
-              const centerY = bounds.y + bounds.height / 2;
-              const angle = Math.atan2(y - centerY, x - centerX);
-              // Snap to 45 deg?
-              this.selectedShape.rotation = angle + Math.PI / 2; // Adjust for handle position (usually top)
+              // Rotation disabled
           } else {
                // Resize (simplified to just width/height for Rect, radius for Circle)
                this.selectedShape.resize(x, y);
@@ -436,7 +449,7 @@ export class ImageEditor {
   private updateCursorStyle(x: number, y: number) {
     if (this.currentTool === 'select') {
         if (this.selectedShape) {
-            const handle = this.transformer.hitTest(x, y);
+            const handle = this.transformer.hitTest(x, y, this.ctx);
             switch (handle) {
                 case 0: this.canvas.style.cursor = 'nw-resize'; break;
                 case 1: this.canvas.style.cursor = 'ne-resize'; break;
@@ -569,17 +582,16 @@ export class ImageEditor {
     return data;
   }
 
-  // Helper to get bounds for rotation logic (duplicate of Transformer logic, maybe expose it?)
-  private getShapeBounds(shape: BaseShape) {
-    // This is a rough approximation if shape doesn't have getBounds public
-    // Rect/Circle have easy bounds. Pen/Arrow/Mosaic need calculation.
-    // For now, let's assume Transformer handles drawing, but for input logic we need it?
-    // Actually, let's try to rely on the Transformer for this if possible, or duplicate minimal logic.
-    // Rect
-    if (shape instanceof Rect) return { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
-    // Circle
-    if (shape instanceof Circle) return { x: shape.x - shape.radius, y: shape.y - shape.radius, width: shape.radius*2, height: shape.radius*2 };
-    // Default fallback
-    return { x: shape.x, y: shape.y, width: 100, height: 100 };
+  public save() {
+    const prevSelection = this.selectedShape;
+    this.selectShape(null);
+    this.render(); // Re-render without handles
+
+    this.canvas.toBlob((blob) => {
+        if (blob && this.onSave) {
+            this.onSave(blob);
+        }
+        if (prevSelection) this.selectShape(prevSelection);
+    }, 'image/png');
   }
 }

@@ -28,6 +28,7 @@ export class Arrow extends BaseShape {
     // Main line
     ctx.moveTo(this.x, this.y);
     ctx.lineTo(this.endX, this.endY);
+    ctx.stroke(); // Draw the line
     
     // Arrow head
     ctx.beginPath();

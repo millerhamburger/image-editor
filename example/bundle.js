@@ -157,6 +157,7 @@ var Arrow = class _Arrow extends BaseShape {
     ctx.lineWidth = this.lineWidth;
     ctx.moveTo(this.x, this.y);
     ctx.lineTo(this.endX, this.endY);
+    ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(this.endX, this.endY);
     ctx.lineTo(this.endX - headLength * Math.cos(angle - Math.PI / 6), this.endY - headLength * Math.sin(angle - Math.PI / 6));
@@ -253,23 +254,6 @@ var PenPath = class _PenPath extends BaseShape {
     ctx.restore();
   }
   hitTest(x, y) {
-    const bounds = this.getBounds();
-    const centerX = (bounds.minX + bounds.maxX) / 2;
-    const centerY = (bounds.minY + bounds.maxY) / 2;
-    const dx = x - centerX;
-    const dy = y - centerY;
-    const cos = Math.cos(-this.rotation);
-    const sin = Math.sin(-this.rotation);
-    const rx = dx * cos - dy * sin;
-    const ry = dx * sin + dy * cos;
-    const finalX = rx + centerX;
-    const finalY = ry + centerY;
-    for (let i = 0; i < this.points.length - 1; i++) {
-      const p1 = this.points[i];
-      const p2 = this.points[i + 1];
-      const dist = this.pointToSegmentDistance(finalX, finalY, p1.x, p1.y, p2.x, p2.y);
-      if (dist <= Math.max(5, this.lineWidth / 2)) return true;
-    }
     return false;
   }
   move(dx, dy) {
@@ -368,6 +352,25 @@ var TextShape = class _TextShape extends BaseShape {
       rotation: this.rotation
     });
   }
+  getBounds(ctx) {
+    ctx.save();
+    ctx.font = `${this.fontSize}px ${this.fontFamily}`;
+    const lines = this.text.split("\n");
+    let maxWidth = 0;
+    lines.forEach((line) => {
+      const w = ctx.measureText(line).width;
+      if (w > maxWidth) maxWidth = w;
+    });
+    const lineHeight = this.fontSize * 1.2;
+    const totalHeight = lines.length * lineHeight;
+    ctx.restore();
+    return {
+      x: this.x,
+      y: this.y,
+      width: maxWidth,
+      height: totalHeight
+    };
+  }
 };
 
 // src/shapes/MosaicBrush.ts
@@ -412,26 +415,6 @@ var MosaicBrush = class _MosaicBrush extends BaseShape {
     ctx.restore();
   }
   hitTest(x, y) {
-    const bounds = this.getBounds();
-    const centerX = (bounds.minX + bounds.maxX) / 2;
-    const centerY = (bounds.minY + bounds.maxY) / 2;
-    const dx = x - centerX;
-    const dy = y - centerY;
-    const cos = Math.cos(-this.rotation);
-    const sin = Math.sin(-this.rotation);
-    const rx = dx * cos - dy * sin;
-    const ry = dx * sin + dy * cos;
-    const finalX = rx + centerX;
-    const finalY = ry + centerY;
-    if (finalX < bounds.minX - this.lineWidth || finalX > bounds.maxX + this.lineWidth || finalY < bounds.minY - this.lineWidth || finalY > bounds.maxY + this.lineWidth) {
-      return false;
-    }
-    for (let i = 0; i < this.points.length - 1; i++) {
-      const p1 = this.points[i];
-      const p2 = this.points[i + 1];
-      const dist = this.pointToSegmentDistance(finalX, finalY, p1.x, p1.y, p2.x, p2.y);
-      if (dist <= this.lineWidth / 2) return true;
-    }
     return false;
   }
   move(dx, dy) {
@@ -521,7 +504,7 @@ var Transformer = class {
   draw(ctx) {
     if (!this.shape) return;
     ctx.save();
-    const bounds = this.getShapeBounds(this.shape);
+    const bounds = this.getShapeBounds(this.shape, ctx);
     const centerX = bounds.x + bounds.width / 2;
     const centerY = bounds.y + bounds.height / 2;
     ctx.translate(centerX, centerY);
@@ -546,22 +529,12 @@ var Transformer = class {
       ctx.fillRect(c.x - this.handleSize / 2, c.y - this.handleSize / 2, this.handleSize, this.handleSize);
       ctx.strokeRect(c.x - this.handleSize / 2, c.y - this.handleSize / 2, this.handleSize, this.handleSize);
     });
-    const rotateX = bounds.x + bounds.width / 2;
-    const rotateY = bounds.y - this.rotateHandleOffset;
-    ctx.beginPath();
-    ctx.moveTo(rotateX, bounds.y);
-    ctx.lineTo(rotateX, rotateY);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(rotateX, rotateY, this.handleSize / 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
     ctx.restore();
   }
   // Returns handle index: 0-3 corners, 4 rotate, -1 none, -2 inside (drag)
-  hitTest(x, y) {
+  hitTest(x, y, ctx) {
     if (!this.shape) return -1;
-    const bounds = this.getShapeBounds(this.shape);
+    const bounds = this.getShapeBounds(this.shape, ctx);
     const centerX = bounds.x + bounds.width / 2;
     const centerY = bounds.y + bounds.height / 2;
     const dx = x - centerX;
@@ -570,9 +543,6 @@ var Transformer = class {
     const sin = Math.sin(-this.shape.rotation);
     const localX = dx * cos - dy * sin + centerX;
     const localY = dx * sin + dy * cos + centerY;
-    const rotateX = bounds.x + bounds.width / 2;
-    const rotateY = bounds.y - this.rotateHandleOffset;
-    if (this.dist(localX, localY, rotateX, rotateY) < this.handleSize) return 4;
     const corners = [
       { x: bounds.x, y: bounds.y },
       { x: bounds.x + bounds.width, y: bounds.y },
@@ -590,7 +560,10 @@ var Transformer = class {
   dist(x1, y1, x2, y2) {
     return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2);
   }
-  getShapeBounds(shape) {
+  getShapeBounds(shape, ctx) {
+    if ("getBounds" in shape && typeof shape.getBounds === "function" && ctx) {
+      return shape.getBounds(ctx);
+    }
     if ("width" in shape && "height" in shape) {
       return { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
     }
@@ -637,6 +610,7 @@ var ImageEditor = class {
     this.backgroundColor = "#ffffff";
     this.mousePos = null;
     this.activeTextShape = null;
+    this.locale = "zh";
     // For Pen tool
     this.currentPenPath = [];
     // State for interaction
@@ -651,6 +625,12 @@ var ImageEditor = class {
     this.ctx = this.canvas.getContext("2d", { willReadFrequently: true });
     this.container.appendChild(this.canvas);
     this.resizeCanvas(options.width || 800, options.height || 600);
+    if (options.locale) {
+      this.locale = options.locale;
+    }
+    if (options.onSave) {
+      this.onSave = options.onSave;
+    }
     this.historyManager = new HistoryManager();
     this.transformer = new Transformer();
     if (options.backgroundColor) {
@@ -683,16 +663,18 @@ var ImageEditor = class {
     this.textArea.style.zIndex = "1000";
     this.textArea.style.font = "20px Arial";
     this.textArea.style.lineHeight = "1.2";
+    this.textArea.style.whiteSpace = "nowrap";
     this.textArea.style.color = this.currentColor;
     this.container.appendChild(this.textArea);
     this.textArea.addEventListener("input", () => {
+      this.textArea.value = this.textArea.value.replace(/\n/g, "");
       this.textArea.style.width = "0";
       this.textArea.style.height = "0";
       this.textArea.style.width = this.textArea.scrollWidth + 10 + "px";
       this.textArea.style.height = this.textArea.scrollHeight + 10 + "px";
     });
     this.textArea.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
+      if (e.key === "Enter") {
         e.preventDefault();
         this.finishTextEditing();
       }
@@ -714,8 +696,8 @@ var ImageEditor = class {
         this.saveState();
         const rect = this.textArea.getBoundingClientRect();
         const containerRect = this.container.getBoundingClientRect();
-        const x = parseFloat(this.textArea.style.left);
-        const y = parseFloat(this.textArea.style.top);
+        const x = parseFloat(this.textArea.style.left) - this.canvas.offsetLeft;
+        const y = parseFloat(this.textArea.style.top) - this.canvas.offsetTop;
         const textShape = new TextShape({
           x,
           y,
@@ -755,8 +737,8 @@ var ImageEditor = class {
         if (shape instanceof TextShape && shape.hitTest(x, y)) {
           this.activeTextShape = shape;
           this.textArea.value = shape.text;
-          this.textArea.style.left = shape.x + "px";
-          this.textArea.style.top = shape.y + "px";
+          this.textArea.style.left = shape.x + this.canvas.offsetLeft + "px";
+          this.textArea.style.top = shape.y + this.canvas.offsetTop + "px";
           this.textArea.style.display = "block";
           this.textArea.style.color = shape.strokeColor;
           this.textArea.style.width = "auto";
@@ -831,8 +813,8 @@ var ImageEditor = class {
     this.isDragging = true;
     if (this.currentTool === "text") {
       this.textArea.value = "";
-      this.textArea.style.left = x + "px";
-      this.textArea.style.top = y + "px";
+      this.textArea.style.left = x + this.canvas.offsetLeft + "px";
+      this.textArea.style.top = y + this.canvas.offsetTop + "px";
       this.textArea.style.display = "block";
       this.textArea.style.color = this.currentColor;
       this.textArea.style.width = "20px";
@@ -843,7 +825,7 @@ var ImageEditor = class {
     }
     if (this.currentTool === "select") {
       if (this.selectedShape) {
-        const handleIndex = this.transformer.hitTest(x, y);
+        const handleIndex = this.transformer.hitTest(x, y, this.ctx);
         if (handleIndex !== -1) {
           this.transformHandleIndex = handleIndex;
           this.saveState();
@@ -944,11 +926,6 @@ var ImageEditor = class {
           this.startY = y;
         } else if (this.transformHandleIndex !== -1) {
           if (this.transformHandleIndex === 4) {
-            const bounds = this.getShapeBounds(this.selectedShape);
-            const centerX = bounds.x + bounds.width / 2;
-            const centerY = bounds.y + bounds.height / 2;
-            const angle = Math.atan2(y - centerY, x - centerX);
-            this.selectedShape.rotation = angle + Math.PI / 2;
           } else {
             this.selectedShape.resize(x, y);
           }
@@ -974,7 +951,7 @@ var ImageEditor = class {
   updateCursorStyle(x, y) {
     if (this.currentTool === "select") {
       if (this.selectedShape) {
-        const handle = this.transformer.hitTest(x, y);
+        const handle = this.transformer.hitTest(x, y, this.ctx);
         switch (handle) {
           case 0:
             this.canvas.style.cursor = "nw-resize";
@@ -1102,11 +1079,16 @@ var ImageEditor = class {
     if (prevSelection) this.selectShape(prevSelection);
     return data;
   }
-  // Helper to get bounds for rotation logic (duplicate of Transformer logic, maybe expose it?)
-  getShapeBounds(shape) {
-    if (shape instanceof Rect) return { x: shape.x, y: shape.y, width: shape.width, height: shape.height };
-    if (shape instanceof Circle) return { x: shape.x - shape.radius, y: shape.y - shape.radius, width: shape.radius * 2, height: shape.radius * 2 };
-    return { x: shape.x, y: shape.y, width: 100, height: 100 };
+  save() {
+    const prevSelection = this.selectedShape;
+    this.selectShape(null);
+    this.render();
+    this.canvas.toBlob((blob) => {
+      if (blob && this.onSave) {
+        this.onSave(blob);
+      }
+      if (prevSelection) this.selectShape(prevSelection);
+    }, "image/png");
   }
 };
 
@@ -1121,6 +1103,7 @@ var Icons = {
   Mosaic: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 8h16M4 12h16M4 16h16M8 4v16M12 4v16M16 4v16"/></svg>`,
   Undo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`,
   Reset: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`,
+  Save: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
   Export: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`
 };
 
@@ -1128,28 +1111,64 @@ var Icons = {
 var Toolbar = class {
   constructor(container, editor) {
     this.tools = [
-      { type: "select", title: "Select", icon: Icons.Select },
-      { type: "rect", title: "Rectangle", icon: Icons.Rect },
-      { type: "circle", title: "Circle", icon: Icons.Circle },
-      { type: "arrow", title: "Arrow", icon: Icons.Arrow },
-      { type: "pen", title: "Pen", icon: Icons.Pen },
-      { type: "text", title: "Text", icon: Icons.Text },
-      { type: "mosaic", title: "Mosaic", icon: Icons.Mosaic }
+      { type: "select", icon: Icons.Select },
+      { type: "rect", icon: Icons.Rect },
+      { type: "circle", icon: Icons.Circle },
+      { type: "arrow", icon: Icons.Arrow },
+      { type: "pen", icon: Icons.Pen },
+      { type: "text", icon: Icons.Text },
+      { type: "mosaic", icon: Icons.Mosaic }
     ];
+    this.labels = {
+      zh: {
+        select: "\u9009\u62E9",
+        rect: "\u77E9\u5F62",
+        circle: "\u5706\u5F62",
+        arrow: "\u7BAD\u5934",
+        pen: "\u753B\u7B14",
+        text: "\u6587\u5B57",
+        mosaic: "\u6253\u7801",
+        undo: "\u64A4\u9500",
+        reset: "\u91CD\u7F6E",
+        save: "\u4FDD\u5B58",
+        color: "\u989C\u8272: ",
+        width: "\u7C97\u7EC6: ",
+        confirmReset: "\u786E\u5B9A\u8981\u6E05\u7A7A\u6240\u6709\u5185\u5BB9\u5417\uFF1F"
+      },
+      en: {
+        select: "Select",
+        rect: "Rectangle",
+        circle: "Circle",
+        arrow: "Arrow",
+        pen: "Pen",
+        text: "Text",
+        mosaic: "Mosaic",
+        undo: "Undo",
+        reset: "Reset",
+        save: "Save",
+        color: "Color: ",
+        width: "Width: ",
+        confirmReset: "Are you sure you want to reset all changes?"
+      }
+    };
     this.container = container;
     this.editor = editor;
     this.render();
+  }
+  get t() {
+    return this.labels[this.editor.locale] || this.labels["zh"];
   }
   render() {
     this.container.innerHTML = "";
     this.container.className = "image-editor-toolbar";
     const actionsContainer = document.createElement("div");
     actionsContainer.className = "tools-group";
-    this.createButton(actionsContainer, Icons.Undo, "Undo", () => this.editor.undo());
-    this.createButton(actionsContainer, Icons.Reset, "Reset", () => {
-      if (confirm("Are you sure you want to reset all changes?")) {
-        this.editor.reset();
-      }
+    this.createButton(actionsContainer, Icons.Undo, this.t.undo, () => this.editor.undo());
+    this.createButton(actionsContainer, Icons.Reset, this.t.reset, () => {
+      this.editor.reset();
+    });
+    this.createButton(actionsContainer, Icons.Save, this.t.save, () => {
+      this.editor.save();
     });
     this.container.appendChild(actionsContainer);
     const sep1 = document.createElement("div");
@@ -1163,7 +1182,7 @@ var Toolbar = class {
     this.tools.forEach((tool) => {
       const btn = document.createElement("button");
       btn.innerHTML = tool.icon;
-      btn.title = tool.title;
+      btn.title = this.t[tool.type] || tool.type;
       btn.className = "tool-btn mode-btn";
       btn.onclick = () => {
         this.editor.setTool(tool.type);
@@ -1176,7 +1195,7 @@ var Toolbar = class {
     const attrsContainer = document.createElement("div");
     attrsContainer.className = "attrs-group";
     const colorLabel = document.createElement("label");
-    colorLabel.innerText = "Color: ";
+    colorLabel.innerText = this.t.color;
     const colorInput = document.createElement("input");
     colorInput.type = "color";
     colorInput.value = "#ff0000";
@@ -1186,7 +1205,7 @@ var Toolbar = class {
     attrsContainer.appendChild(colorLabel);
     attrsContainer.appendChild(colorInput);
     const widthLabel = document.createElement("label");
-    widthLabel.innerText = "Width: ";
+    widthLabel.innerText = this.t.width;
     const widthInput = document.createElement("input");
     widthInput.type = "range";
     widthInput.min = "1";
@@ -1197,11 +1216,6 @@ var Toolbar = class {
     };
     attrsContainer.appendChild(widthLabel);
     attrsContainer.appendChild(widthInput);
-    this.createButton(attrsContainer, Icons.Export, "Export", () => {
-      const url = this.editor.exportDataURL();
-      const win = window.open();
-      win?.document.write('<img src="' + url + '"/>');
-    });
     this.container.appendChild(attrsContainer);
   }
   createButton(container, icon, title, onClick) {
@@ -1236,7 +1250,8 @@ var EditorApp = class {
       container: editorContainer,
       width: options.width,
       height: options.height,
-      backgroundImage: options.backgroundImage
+      backgroundImage: options.backgroundImage,
+      onSave: options.onSave
     });
     this.toolbar = new Toolbar(toolbarContainer, this.editor);
   }
@@ -1245,4 +1260,3 @@ window.ImageEditorApp = EditorApp;
 export {
   EditorApp
 };
-//# sourceMappingURL=bundle.js.map

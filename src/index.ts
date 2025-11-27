@@ -5,7 +5,12 @@ export class EditorApp {
   editor: ImageEditor;
   toolbar: Toolbar;
 
-  constructor(containerId: string, options: { width: number; height: number; backgroundImage?: string }) {
+  constructor(containerId: string, options: { 
+    width: number; 
+    height: number; 
+    backgroundImage?: string; 
+    onSave?: (blob: Blob) => void 
+  }) {
     const root = document.getElementById(containerId);
     if (!root) throw new Error('Container not found');
 
@@ -19,7 +24,8 @@ export class EditorApp {
       container: editorContainer,
       width: options.width,
       height: options.height,
-      backgroundImage: options.backgroundImage
+      backgroundImage: options.backgroundImage,
+      onSave: options.onSave
     });
 
     this.toolbar = new Toolbar(toolbarContainer, this.editor);
