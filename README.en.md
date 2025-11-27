@@ -1,37 +1,37 @@
-# 图片编辑器
+# Image Editor
 
-中文 | [English](./README.en.md)
+[中文](./README.md) | English
 
-## 简介
+## Introduction
 
-`bunnn-canvas-image-editor` 是一个基于 HTML5 Canvas 的简易图片编辑器，支持多种绘图工具、撤销/重置、多语言支持以及图片保存功能。
+`bunnn-canvas-image-editor` is a simple HTML5 Canvas-based image editor supporting multiple drawing tools, undo/reset, i18n, and saving as Blob.
 
-![操作预览](./example/preview.gif)
+![Preview](./example/preview.gif)
 
-## 功能特性
+## Features
 
-- 基础绘图：矩形、圆形、箭头
-- 画笔工具：自由绘制线条
-- 文字工具：文本输入、双击编辑
-- 马赛克/打码：局部打码
-- 图片保存：导出为 Blob 图片格式
-- 国际化：内置中英文支持（默认中文）
+- Basic Shapes: Rectangle, Circle, Arrow
+- Pen Tool: Freehand drawing
+- Text Tool: Text input, double-click to edit
+- Mosaic: Local pixelation
+- Save: Export as Blob image
+- i18n: Built-in Chinese and English (Chinese default)
 
-## 安装
+## Installation
 
 ```bash
 npm install bunnn-canvas-image-editor
 ```
 
-## 在 React 项目中使用
+## Usage in React
 
-### 引入样式
+### Import styles
 
 ```javascript
 import 'bunnn-canvas-image-editor/dist/style.css';
 ```
 
-### 创建组件
+### Create component
 
 ```tsx
 import React, { useEffect, useRef } from 'react';
@@ -47,7 +47,7 @@ const ImageEditor = () => {
         width: 800,
         height: 600,
         backgroundImage: 'https://picsum.photos/800/600',
-        locale: 'zh',
+        locale: 'en',
         onSave: (blob) => {
           const link = document.createElement('a');
           link.download = 'edited-image.png';
@@ -68,12 +68,13 @@ const ImageEditor = () => {
 export default ImageEditor;
 ```
 
-## 配置选项 (EditorOptions)
+## Options (EditorOptions)
 
-- `container`: `HTMLElement` 编辑器挂载容器（内部使用）
-- `width`: `number` 画布宽度
-- `height`: `number` 画布高度
-- `backgroundImage`: `string` 可选，背景图片 URL
-- `backgroundColor`: `string` 可选，背景颜色，默认为白色
-- `locale`: `'zh' | 'en'` 可选，语言，默认为中文
-- `onSave`: `(blob: Blob) => void` 可选，保存按钮回调
+- `container`: `HTMLElement` DOM container (internal)
+- `width`: `number` canvas width
+- `height`: `number` canvas height
+- `backgroundImage`: `string` optional background image URL
+- `backgroundColor`: `string` optional background color, default white
+- `locale`: `'zh' | 'en'` optional language, default Chinese
+- `onSave`: `(blob: Blob) => void` optional save callback
+
