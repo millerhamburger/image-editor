@@ -22,7 +22,10 @@
   position: relative;
 }
 .image-editor-toolbar .save-group {
-  flex: 0 0 auto;
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 .image-editor-toolbar .tool-btn {
   padding: 4px 10px;
