@@ -1,4 +1,5 @@
 import { BaseShape } from '../shapes/BaseShape';
+import { TextShape } from '../shapes/Text';
 
 export class Transformer {
   private shape: BaseShape | null = null;
@@ -34,21 +35,22 @@ export class Transformer {
     ctx.lineWidth = 1;
     ctx.strokeRect(bounds.x, bounds.y, bounds.width, bounds.height);
 
-    // Draw handles
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#00a8ff';
 
     const corners = [
-      { x: bounds.x, y: bounds.y }, // TL
-      { x: bounds.x + bounds.width, y: bounds.y }, // TR
-      { x: bounds.x + bounds.width, y: bounds.y + bounds.height }, // BR
-      { x: bounds.x, y: bounds.y + bounds.height } // BL
+      { x: bounds.x, y: bounds.y },
+      { x: bounds.x + bounds.width, y: bounds.y },
+      { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
+      { x: bounds.x, y: bounds.y + bounds.height }
     ];
 
-    corners.forEach(c => {
-      ctx.fillRect(c.x - this.handleSize / 2, c.y - this.handleSize / 2, this.handleSize, this.handleSize);
-      ctx.strokeRect(c.x - this.handleSize / 2, c.y - this.handleSize / 2, this.handleSize, this.handleSize);
-    });
+    if (!(this.shape instanceof TextShape)) {
+      corners.forEach(c => {
+        ctx.fillRect(c.x - this.handleSize / 2, c.y - this.handleSize / 2, this.handleSize, this.handleSize);
+        ctx.strokeRect(c.x - this.handleSize / 2, c.y - this.handleSize / 2, this.handleSize, this.handleSize);
+      });
+    }
 
     // Rotate Handle - Removed
     /*
@@ -92,7 +94,6 @@ export class Transformer {
     if (this.dist(localX, localY, rotateX, rotateY) < this.handleSize) return 4;
     */
 
-    // Check corners
     const corners = [
       { x: bounds.x, y: bounds.y },
       { x: bounds.x + bounds.width, y: bounds.y },
@@ -100,8 +101,10 @@ export class Transformer {
       { x: bounds.x, y: bounds.y + bounds.height }
     ];
 
-    for (let i = 0; i < corners.length; i++) {
-      if (this.dist(localX, localY, corners[i].x, corners[i].y) < this.handleSize) return i;
+    if (!(this.shape instanceof TextShape)) {
+      for (let i = 0; i < corners.length; i++) {
+        if (this.dist(localX, localY, corners[i].x, corners[i].y) < this.handleSize) return i;
+      }
     }
 
     // Check inside

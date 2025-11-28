@@ -531,18 +531,16 @@ var Transformer = class {
     ctx.strokeStyle = "#00a8ff";
     const corners = [
       { x: bounds.x, y: bounds.y },
-      // TL
       { x: bounds.x + bounds.width, y: bounds.y },
-      // TR
       { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
-      // BR
       { x: bounds.x, y: bounds.y + bounds.height }
-      // BL
     ];
-    corners.forEach((c) => {
-      ctx.fillRect(c.x - this.handleSize / 2, c.y - this.handleSize / 2, this.handleSize, this.handleSize);
-      ctx.strokeRect(c.x - this.handleSize / 2, c.y - this.handleSize / 2, this.handleSize, this.handleSize);
-    });
+    if (!(this.shape instanceof TextShape)) {
+      corners.forEach((c) => {
+        ctx.fillRect(c.x - this.handleSize / 2, c.y - this.handleSize / 2, this.handleSize, this.handleSize);
+        ctx.strokeRect(c.x - this.handleSize / 2, c.y - this.handleSize / 2, this.handleSize, this.handleSize);
+      });
+    }
     ctx.restore();
   }
   // Returns handle index: 0-3 corners, 4 rotate, -1 none, -2 inside (drag)
@@ -563,8 +561,10 @@ var Transformer = class {
       { x: bounds.x + bounds.width, y: bounds.y + bounds.height },
       { x: bounds.x, y: bounds.y + bounds.height }
     ];
-    for (let i = 0; i < corners.length; i++) {
-      if (this.dist(localX, localY, corners[i].x, corners[i].y) < this.handleSize) return i;
+    if (!(this.shape instanceof TextShape)) {
+      for (let i = 0; i < corners.length; i++) {
+        if (this.dist(localX, localY, corners[i].x, corners[i].y) < this.handleSize) return i;
+      }
     }
     if (localX >= bounds.x && localX <= bounds.x + bounds.width && localY >= bounds.y && localY <= bounds.y + bounds.height) {
       return -2;
