@@ -9,7 +9,8 @@ export class EditorApp {
     width: number; 
     height: number; 
     backgroundImage?: string; 
-    onSave?: (blob: Blob) => void 
+    onSave?: (blob: Blob) => void,
+    onClose?: () => void
   }) {
     const root = document.getElementById(containerId);
     if (!root) throw new Error('Container not found');
@@ -25,7 +26,8 @@ export class EditorApp {
       width: options.width,
       height: options.height,
       backgroundImage: options.backgroundImage,
-      onSave: options.onSave
+      onSave: options.onSave,
+      onClose: options.onClose
     });
 
     this.toolbar = new Toolbar(toolbarContainer, this.editor);

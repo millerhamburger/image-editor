@@ -18,6 +18,7 @@ export interface EditorOptions {
   backgroundColor?: string;
   locale?: 'zh' | 'en';
   onSave?: (blob: Blob) => void;
+  onClose?: () => void;
 }
 
 export class ImageEditor {
@@ -40,6 +41,7 @@ export class ImageEditor {
   private activeTextShape: TextShape | null = null;
   public locale: 'zh' | 'en' = 'zh'; // Default Chinese
   private onSave?: (blob: Blob) => void;
+  private onClose?: () => void;
 
   // For Pen tool
   private currentPenPath: { x: number; y: number }[] = [];
@@ -69,6 +71,9 @@ export class ImageEditor {
 
     if (options.onSave) {
         this.onSave = options.onSave;
+    }
+    if (options.onClose) {
+        this.onClose = options.onClose;
     }
 
     this.historyManager = new HistoryManager();
@@ -235,12 +240,7 @@ export class ImageEditor {
         e.preventDefault();
         this.undo();
       }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
-        e.preventDefault();
-        this.redo(); // Assuming HistoryManager has redo, but interface only showed undo? Check later.
-        // Actually HistoryManager implementation in summary showed undo and push, but hinted at redoStack.
-        // I will double check HistoryManager.
-      }
+      
     });
   }
 
@@ -532,7 +532,12 @@ export class ImageEditor {
   }
   
   public redo() {
-      // Optional: HistoryManager needs redo support
+      const nextState = this.historyManager.redo(this.shapes);
+      if (nextState) {
+        this.shapes = nextState;
+        this.selectShape(null);
+        this.render();
+      }
   }
 
   public reset() {
@@ -600,5 +605,18 @@ export class ImageEditor {
         }
         if (prevSelection) this.selectShape(prevSelection);
     }, 'image/png');
+  }
+
+  public close() {
+    if (this.onClose) {
+        this.onClose();
+        return;
+    }
+    const root = this.container.parentElement;
+    if (root) {
+        root.innerHTML = '';
+    } else {
+        this.container.innerHTML = '';
+    }
   }
 }

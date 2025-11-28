@@ -26,8 +26,8 @@ export class Toolbar {
           undo: '撤销',
           reset: '重置',
           save: '保存',
-          color: '颜色: ',
-          width: '粗细: ',
+          color: '颜色',
+          width: '线条粗细',
           confirmReset: '确定要清空所有内容吗？'
       },
       en: {
@@ -41,8 +41,8 @@ export class Toolbar {
           undo: 'Undo',
           reset: 'Reset',
           save: 'Save',
-          color: 'Color: ',
-          width: 'Width: ',
+          color: 'Color',
+          width: 'Width',
           confirmReset: 'Are you sure you want to reset all changes?'
       }
   };
@@ -61,83 +61,117 @@ export class Toolbar {
     this.container.innerHTML = '';
     this.container.className = 'image-editor-toolbar';
 
-    // Actions Group (Undo, Reset)
-    const actionsContainer = document.createElement('div');
-    actionsContainer.className = 'tools-group'; // Reuse class for layout
-    
-    this.createButton(actionsContainer, Icons.Undo, this.t.undo, () => this.editor.undo());
-    this.createButton(actionsContainer, Icons.Reset, this.t.reset, () => {
+    // Center Group - all tools & attributes
+    const centerGroup = document.createElement('div');
+    centerGroup.className = 'tools-group center-group attrs-group';
+    this.createButton(centerGroup, Icons.Undo, this.t.undo, () => this.editor.undo());
+    this.createButton(centerGroup, Icons.Reset, this.t.reset, () => {
         this.editor.reset();
     });
-    this.createButton(actionsContainer, Icons.Save, this.t.save, () => {
-        this.editor.save();
-    });
-
-    this.container.appendChild(actionsContainer);
-
-    // Separator
-    const sep1 = document.createElement('div');
-    sep1.style.width = '1px';
-    sep1.style.height = '24px';
-    sep1.style.background = '#ccc';
-    sep1.style.margin = '0 5px';
-    this.container.appendChild(sep1);
-
-    // Tools Group
-    const toolsContainer = document.createElement('div');
-    toolsContainer.className = 'tools-group';
-
-    this.tools.forEach(tool => {
-      const btn = document.createElement('button');
-      btn.innerHTML = tool.icon;
-      btn.title = this.t[tool.type as keyof typeof this.t] || tool.type;
-      btn.className = 'tool-btn mode-btn';
-      btn.onclick = () => {
-        this.editor.setTool(tool.type);
-        this.setActive(btn);
-      };
-      if (tool.type === 'select') btn.classList.add('active');
-      toolsContainer.appendChild(btn);
-    });
-
-    this.container.appendChild(toolsContainer);
-
-    // Attributes Group
-    const attrsContainer = document.createElement('div');
-    attrsContainer.className = 'attrs-group';
+    const sepAfterReset = document.createElement('div');
+    sepAfterReset.className = 'toolbar-sep';
+    centerGroup.appendChild(sepAfterReset);
 
     // Color picker
-    const colorLabel = document.createElement('label');
-    colorLabel.innerText = this.t.color;
+    // Mode buttons appended into center
+    this.tools.forEach(tool => {
+      const label = this.t[tool.type as keyof typeof this.t] || tool.type;
+      const btn = this.createButton(centerGroup, tool.icon, label, () => {
+        this.editor.setTool(tool.type);
+        this.setActive(btn);
+      });
+      btn.classList.add('mode-btn');
+      if (tool.type === 'select') btn.classList.add('active');
+    });
+
     const colorInput = document.createElement('input');
     colorInput.type = 'color';
     colorInput.value = '#ff0000';
+    colorInput.style.position = 'absolute';
+    colorInput.style.opacity = '0';
+    colorInput.style.width = '1px';
+    colorInput.style.height = '1px';
+    colorInput.style.border = '0';
+    colorInput.style.padding = '0';
+    const colorBtnIcon = `<span class="swatch-icon" style="background-color:${colorInput.value}"></span>`;
+    const colorBtn = this.createButton(centerGroup, colorBtnIcon, this.t.color.trim(), () => {
+      const left = (colorBtn as HTMLElement).offsetLeft;
+      const top = (colorBtn as HTMLElement).offsetTop + (colorBtn as HTMLElement).offsetHeight + 6;
+      colorInput.style.left = `${left}px`;
+      colorInput.style.top = `${top}px`;
+      const anyInput = colorInput as any;
+      if (typeof anyInput.showPicker === 'function') {
+        requestAnimationFrame(() => anyInput.showPicker());
+      } else {
+        requestAnimationFrame(() => colorInput.click());
+      }
+    });
     colorInput.onchange = (e) => {
-      this.editor.setColor((e.target as HTMLInputElement).value);
+      const val = (e.target as HTMLInputElement).value;
+      const sw = colorBtn.querySelector('.swatch-icon') as HTMLElement;
+      if (sw) sw.style.backgroundColor = val;
+      this.editor.setColor(val);
     };
-    attrsContainer.appendChild(colorLabel);
-    attrsContainer.appendChild(colorInput);
+    centerGroup.appendChild(colorInput);
 
     // Width picker
-    const widthLabel = document.createElement('label');
-    widthLabel.innerText = this.t.width;
-    const widthInput = document.createElement('input');
-    widthInput.type = 'range';
-    widthInput.min = '1';
-    widthInput.max = '20';
-    widthInput.value = '2';
-    widthInput.onchange = (e) => {
-      this.editor.setLineWidth(parseInt((e.target as HTMLInputElement).value));
+    const widths = [2, 6, 12];
+    const widthBtnIcon = `<span class="width-preview" data-width="2"></span>`;
+    const widthBtn = this.createButton(centerGroup, widthBtnIcon, this.t.width.trim(), () => {
+      if (widthPopover.style.display !== 'none') {
+        widthPopover.style.display = 'none';
+        document.removeEventListener('mousedown', handleOutside);
+        return;
+      }
+      const btnRect = widthBtn.getBoundingClientRect();
+      const groupRect = centerGroup.getBoundingClientRect();
+      widthPopover.style.left = (btnRect.left - groupRect.left) + 'px';
+      widthPopover.style.top = (btnRect.top - groupRect.top + btnRect.height + 6) + 'px';
+      widthPopover.style.display = 'flex';
+      document.addEventListener('mousedown', handleOutside);
+    });
+    const widthPopover = document.createElement('div');
+    widthPopover.className = 'width-popover';
+    const handleOutside = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (!widthPopover.contains(t) && !widthBtn.contains(t as Node)) {
+        widthPopover.style.display = 'none';
+        document.removeEventListener('mousedown', handleOutside);
+      }
     };
-    attrsContainer.appendChild(widthLabel);
-    attrsContainer.appendChild(widthInput);
+    widthPopover.addEventListener('mousedown', (e) => e.stopPropagation());
+    widthBtn.addEventListener('mousedown', (e) => e.stopPropagation());
+    widths.forEach(w => {
+      const dot = document.createElement('button');
+      dot.className = 'width-dot';
+      dot.setAttribute('data-width', String(w));
+      dot.onclick = () => {
+        this.editor.setLineWidth(w);
+        const prev = widthBtn.querySelector('.width-preview') as HTMLElement;
+        if (prev) prev.setAttribute('data-width', String(w));
+        widthPopover.style.display = 'none';
+        document.removeEventListener('mousedown', handleOutside);
+      };
+      widthPopover.appendChild(dot);
+    });
+    widthPopover.style.display = 'none';
+    centerGroup.appendChild(widthPopover);
     
-    this.container.appendChild(attrsContainer);
+    this.container.appendChild(centerGroup);
+
+    // Save at far right
+    const saveGroup = document.createElement('div');
+    saveGroup.className = 'save-group';
+    const saveBtn = this.createButton(saveGroup, Icons.Save, this.t.save, () => {
+        this.editor.save();
+    });
+    saveBtn.classList.add('primary');
+    this.container.appendChild(saveGroup);
   }
 
   private createButton(container: HTMLElement, icon: string, title: string, onClick: () => void) {
       const btn = document.createElement('button');
-      btn.innerHTML = icon;
+      btn.innerHTML = `<span class="btn-icon">${icon}</span><span class="btn-label">${title}</span>`;
       btn.title = title;
       btn.className = 'tool-btn';
       btn.onclick = onClick;

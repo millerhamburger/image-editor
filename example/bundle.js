@@ -645,6 +645,9 @@ var ImageEditor = class {
     if (options.onSave) {
       this.onSave = options.onSave;
     }
+    if (options.onClose) {
+      this.onClose = options.onClose;
+    }
     this.historyManager = new HistoryManager();
     this.transformer = new Transformer();
     if (options.backgroundColor) {
@@ -777,10 +780,6 @@ var ImageEditor = class {
       if ((e.ctrlKey || e.metaKey) && e.key === "z") {
         e.preventDefault();
         this.undo();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "y") {
-        e.preventDefault();
-        this.redo();
       }
     });
   }
@@ -1056,6 +1055,12 @@ var ImageEditor = class {
     }
   }
   redo() {
+    const nextState = this.historyManager.redo(this.shapes);
+    if (nextState) {
+      this.shapes = nextState;
+      this.selectShape(null);
+      this.render();
+    }
   }
   reset() {
     this.saveState();
@@ -1112,6 +1117,18 @@ var ImageEditor = class {
       if (prevSelection) this.selectShape(prevSelection);
     }, "image/png");
   }
+  close() {
+    if (this.onClose) {
+      this.onClose();
+      return;
+    }
+    const root = this.container.parentElement;
+    if (root) {
+      root.innerHTML = "";
+    } else {
+      this.container.innerHTML = "";
+    }
+  }
 };
 
 // src/ui/Icons.ts
@@ -1124,9 +1141,11 @@ var Icons = {
   Text: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>`,
   Mosaic: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 8h16M4 12h16M4 16h16M8 4v16M12 4v16M16 4v16"/></svg>`,
   Undo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`,
+  Redo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>`,
   Reset: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`,
   Save: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
-  Export: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`
+  Export: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
+  Close: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`
 };
 
 // src/ui/Toolbar.ts
@@ -1153,8 +1172,8 @@ var Toolbar = class {
         undo: "\u64A4\u9500",
         reset: "\u91CD\u7F6E",
         save: "\u4FDD\u5B58",
-        color: "\u989C\u8272: ",
-        width: "\u7C97\u7EC6: ",
+        color: "\u989C\u8272",
+        width: "\u7EBF\u6761\u7C97\u7EC6",
         confirmReset: "\u786E\u5B9A\u8981\u6E05\u7A7A\u6240\u6709\u5185\u5BB9\u5417\uFF1F"
       },
       en: {
@@ -1168,8 +1187,8 @@ var Toolbar = class {
         undo: "Undo",
         reset: "Reset",
         save: "Save",
-        color: "Color: ",
-        width: "Width: ",
+        color: "Color",
+        width: "Width",
         confirmReset: "Are you sure you want to reset all changes?"
       }
     };
@@ -1183,66 +1202,106 @@ var Toolbar = class {
   render() {
     this.container.innerHTML = "";
     this.container.className = "image-editor-toolbar";
-    const actionsContainer = document.createElement("div");
-    actionsContainer.className = "tools-group";
-    this.createButton(actionsContainer, Icons.Undo, this.t.undo, () => this.editor.undo());
-    this.createButton(actionsContainer, Icons.Reset, this.t.reset, () => {
+    const centerGroup = document.createElement("div");
+    centerGroup.className = "tools-group center-group attrs-group";
+    this.createButton(centerGroup, Icons.Undo, this.t.undo, () => this.editor.undo());
+    this.createButton(centerGroup, Icons.Reset, this.t.reset, () => {
       this.editor.reset();
     });
-    this.createButton(actionsContainer, Icons.Save, this.t.save, () => {
-      this.editor.save();
-    });
-    this.container.appendChild(actionsContainer);
-    const sep1 = document.createElement("div");
-    sep1.style.width = "1px";
-    sep1.style.height = "24px";
-    sep1.style.background = "#ccc";
-    sep1.style.margin = "0 5px";
-    this.container.appendChild(sep1);
-    const toolsContainer = document.createElement("div");
-    toolsContainer.className = "tools-group";
+    const sepAfterReset = document.createElement("div");
+    sepAfterReset.className = "toolbar-sep";
+    centerGroup.appendChild(sepAfterReset);
     this.tools.forEach((tool) => {
-      const btn = document.createElement("button");
-      btn.innerHTML = tool.icon;
-      btn.title = this.t[tool.type] || tool.type;
-      btn.className = "tool-btn mode-btn";
-      btn.onclick = () => {
+      const label = this.t[tool.type] || tool.type;
+      const btn = this.createButton(centerGroup, tool.icon, label, () => {
         this.editor.setTool(tool.type);
         this.setActive(btn);
-      };
+      });
+      btn.classList.add("mode-btn");
       if (tool.type === "select") btn.classList.add("active");
-      toolsContainer.appendChild(btn);
     });
-    this.container.appendChild(toolsContainer);
-    const attrsContainer = document.createElement("div");
-    attrsContainer.className = "attrs-group";
-    const colorLabel = document.createElement("label");
-    colorLabel.innerText = this.t.color;
     const colorInput = document.createElement("input");
     colorInput.type = "color";
     colorInput.value = "#ff0000";
+    colorInput.style.position = "absolute";
+    colorInput.style.opacity = "0";
+    colorInput.style.width = "1px";
+    colorInput.style.height = "1px";
+    colorInput.style.border = "0";
+    colorInput.style.padding = "0";
+    const colorBtnIcon = `<span class="swatch-icon" style="background-color:${colorInput.value}"></span>`;
+    const colorBtn = this.createButton(centerGroup, colorBtnIcon, this.t.color.trim(), () => {
+      const left = colorBtn.offsetLeft;
+      const top = colorBtn.offsetTop + colorBtn.offsetHeight + 6;
+      colorInput.style.left = `${left}px`;
+      colorInput.style.top = `${top}px`;
+      const anyInput = colorInput;
+      if (typeof anyInput.showPicker === "function") {
+        requestAnimationFrame(() => anyInput.showPicker());
+      } else {
+        requestAnimationFrame(() => colorInput.click());
+      }
+    });
     colorInput.onchange = (e) => {
-      this.editor.setColor(e.target.value);
+      const val = e.target.value;
+      const sw = colorBtn.querySelector(".swatch-icon");
+      if (sw) sw.style.backgroundColor = val;
+      this.editor.setColor(val);
     };
-    attrsContainer.appendChild(colorLabel);
-    attrsContainer.appendChild(colorInput);
-    const widthLabel = document.createElement("label");
-    widthLabel.innerText = this.t.width;
-    const widthInput = document.createElement("input");
-    widthInput.type = "range";
-    widthInput.min = "1";
-    widthInput.max = "20";
-    widthInput.value = "2";
-    widthInput.onchange = (e) => {
-      this.editor.setLineWidth(parseInt(e.target.value));
+    centerGroup.appendChild(colorInput);
+    const widths = [2, 6, 12];
+    const widthBtnIcon = `<span class="width-preview" data-width="2"></span>`;
+    const widthBtn = this.createButton(centerGroup, widthBtnIcon, this.t.width.trim(), () => {
+      if (widthPopover.style.display !== "none") {
+        widthPopover.style.display = "none";
+        document.removeEventListener("mousedown", handleOutside);
+        return;
+      }
+      const btnRect = widthBtn.getBoundingClientRect();
+      const groupRect = centerGroup.getBoundingClientRect();
+      widthPopover.style.left = btnRect.left - groupRect.left + "px";
+      widthPopover.style.top = btnRect.top - groupRect.top + btnRect.height + 6 + "px";
+      widthPopover.style.display = "flex";
+      document.addEventListener("mousedown", handleOutside);
+    });
+    const widthPopover = document.createElement("div");
+    widthPopover.className = "width-popover";
+    const handleOutside = (e) => {
+      const t = e.target;
+      if (!widthPopover.contains(t) && !widthBtn.contains(t)) {
+        widthPopover.style.display = "none";
+        document.removeEventListener("mousedown", handleOutside);
+      }
     };
-    attrsContainer.appendChild(widthLabel);
-    attrsContainer.appendChild(widthInput);
-    this.container.appendChild(attrsContainer);
+    widthPopover.addEventListener("mousedown", (e) => e.stopPropagation());
+    widthBtn.addEventListener("mousedown", (e) => e.stopPropagation());
+    widths.forEach((w) => {
+      const dot = document.createElement("button");
+      dot.className = "width-dot";
+      dot.setAttribute("data-width", String(w));
+      dot.onclick = () => {
+        this.editor.setLineWidth(w);
+        const prev = widthBtn.querySelector(".width-preview");
+        if (prev) prev.setAttribute("data-width", String(w));
+        widthPopover.style.display = "none";
+        document.removeEventListener("mousedown", handleOutside);
+      };
+      widthPopover.appendChild(dot);
+    });
+    widthPopover.style.display = "none";
+    centerGroup.appendChild(widthPopover);
+    this.container.appendChild(centerGroup);
+    const saveGroup = document.createElement("div");
+    saveGroup.className = "save-group";
+    const saveBtn = this.createButton(saveGroup, Icons.Save, this.t.save, () => {
+      this.editor.save();
+    });
+    saveBtn.classList.add("primary");
+    this.container.appendChild(saveGroup);
   }
   createButton(container, icon, title, onClick) {
     const btn = document.createElement("button");
-    btn.innerHTML = icon;
+    btn.innerHTML = `<span class="btn-icon">${icon}</span><span class="btn-label">${title}</span>`;
     btn.title = title;
     btn.className = "tool-btn";
     btn.onclick = onClick;
@@ -1273,7 +1332,8 @@ var EditorApp = class {
       width: options.width,
       height: options.height,
       backgroundImage: options.backgroundImage,
-      onSave: options.onSave
+      onSave: options.onSave,
+      onClose: options.onClose
     });
     this.toolbar = new Toolbar(toolbarContainer, this.editor);
   }
@@ -1282,3 +1342,4 @@ window.ImageEditorApp = EditorApp;
 export {
   EditorApp
 };
+//# sourceMappingURL=bundle.js.map
